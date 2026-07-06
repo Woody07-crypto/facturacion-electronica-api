@@ -1,0 +1,816 @@
+{
+  "info": {
+    "name": "Plataforma de Facturación Electrónica",
+    "description": "Flujo completo: registro → login → cliente → series → emisión → pago → nota de crédito → anulación → conciliación → reportes → bitácora. Ejecutar en orden.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000"
+    },
+    {
+      "key": "token",
+      "value": ""
+    },
+    {
+      "key": "clienteId",
+      "value": ""
+    },
+    {
+      "key": "serieFacturaId",
+      "value": ""
+    },
+    {
+      "key": "serieNotaId",
+      "value": ""
+    },
+    {
+      "key": "facturaId",
+      "value": ""
+    },
+    {
+      "key": "facturaAnulableId",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "01 · Autenticación",
+      "item": [
+        {
+          "name": "Registrar usuario (primero = ADMIN)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "register"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@ici.com.sv\",\n  \"password\": \"Secreto123\",\n  \"nombre\": \"Administrador ICI\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Usuario creado', () => pm.expect(pm.response.code).to.be.oneOf([201, 409]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@ici.com.sv\",\n  \"password\": \"Secreto123\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const r = pm.response.json();",
+                  "pm.collectionVariables.set('token', r.access_token);",
+                  "pm.test('Token recibido', () => pm.expect(r.access_token).to.be.a('string'));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "02 · Configuración",
+      "item": [
+        {
+          "name": "Crear cliente",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/clientes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "clientes"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Constructora Salvadoreña S.A. de C.V.\",\n  \"nit\": \"0614-123456-101-2\",\n  \"nrc\": \"123456-7\",\n  \"giro\": \"Construcción\",\n  \"direccion\": \"San Salvador\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201) pm.collectionVariables.set('clienteId', pm.response.json().id);",
+                  "pm.test('Cliente listo', () => pm.expect(pm.response.code).to.be.oneOf([201, 409]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Crear serie FACTURA (ADMIN)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/series",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "series"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tipoDocumento\": \"FACTURA\",\n  \"prefijo\": \"FAC-2026\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201) pm.collectionVariables.set('serieFacturaId', pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Crear serie NOTA_CREDITO (ADMIN)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/series",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "series"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tipoDocumento\": \"NOTA_CREDITO\",\n  \"prefijo\": \"NC-2026\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201) pm.collectionVariables.set('serieNotaId', pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "03 · Emisión",
+      "item": [
+        {
+          "name": "Emitir factura (IVA 13% automático)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/facturas",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "facturas"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"clienteId\": \"{{clienteId}}\",\n  \"serieId\": \"{{serieFacturaId}}\",\n  \"diasCredito\": 30,\n  \"lineas\": [\n    {\n      \"descripcion\": \"Taladro percutor INGCO 850W\",\n      \"cantidad\": 2,\n      \"precioUnitario\": 50\n    },\n    {\n      \"descripcion\": \"Disco de corte PFERD 4.5\\\"\",\n      \"cantidad\": 10,\n      \"precioUnitario\": 1.5\n    }\n  ]\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const f = pm.response.json();",
+                  "pm.collectionVariables.set('facturaId', f.id);",
+                  "pm.test('Total con IVA correcto', () => pm.expect(f.total).to.eql(129.95));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Emitir segunda factura (para anular)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/facturas",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "facturas"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"clienteId\": \"{{clienteId}}\",\n  \"serieId\": \"{{serieFacturaId}}\",\n  \"lineas\": [\n    {\n      \"descripcion\": \"Pintura ECO PAINT galón\",\n      \"cantidad\": 1,\n      \"precioUnitario\": 20\n    }\n  ]\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('facturaAnulableId', pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Consultar factura",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/facturas/{{facturaId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "facturas",
+                "{{facturaId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Consultar saldo pendiente",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/facturas/{{facturaId}}/saldo",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "facturas",
+                "{{facturaId}}",
+                "saldo"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "04 · Pagos",
+      "item": [
+        {
+          "name": "Registrar pago parcial ($50)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/facturas/{{facturaId}}/pagos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "facturas",
+                "{{facturaId}}",
+                "pagos"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"monto\": 50,\n  \"metodo\": \"TRANSFERENCIA\",\n  \"referencia\": \"REF-001\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Estado PAGADA_PARCIAL', () => pm.expect(pm.response.json().estado).to.eql('PAGADA_PARCIAL'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Intento de pago mayor al saldo (debe fallar 400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/facturas/{{facturaId}}/pagos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "facturas",
+                "{{facturaId}}",
+                "pagos"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"monto\": 9999,\n  \"metodo\": \"EFECTIVO\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Rechazado 400', () => pm.expect(pm.response.code).to.eql(400));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "05 · Notas de crédito",
+      "item": [
+        {
+          "name": "NC que supera el monto original (debe fallar 409)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/notas-credito",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "notas-credito"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"facturaId\": \"{{facturaId}}\",\n  \"serieId\": \"{{serieNotaId}}\",\n  \"monto\": 500,\n  \"razon\": \"Monto excesivo\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Rechazada 409', () => pm.expect(pm.response.code).to.eql(409));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Emitir NC válida ($29.95)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/notas-credito",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "notas-credito"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"facturaId\": \"{{facturaId}}\",\n  \"serieId\": \"{{serieNotaId}}\",\n  \"monto\": 29.95,\n  \"razon\": \"Devolución de mercadería\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('NC emitida', () => pm.expect(pm.response.code).to.eql(201));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Saldar factura (pago final $50)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/facturas/{{facturaId}}/pagos",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "facturas",
+                "{{facturaId}}",
+                "pagos"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"monto\": 50,\n  \"metodo\": \"EFECTIVO\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Estado PAGADA', () => pm.expect(pm.response.json().estado).to.eql('PAGADA'));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "06 · Anulación",
+      "item": [
+        {
+          "name": "Anular factura con pagos (debe fallar 409)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/facturas/{{facturaId}}/anular",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "facturas",
+                "{{facturaId}}",
+                "anular"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"razon\": \"Intento inválido de anulación\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Bloqueada 409', () => pm.expect(pm.response.code).to.eql(409));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Anular factura sin pagos (ADMIN)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/facturas/{{facturaAnulableId}}/anular",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "facturas",
+                "{{facturaAnulableId}}",
+                "anular"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"razon\": \"Error en datos del cliente, se emitirá nueva factura\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Anulada', () => pm.expect(pm.response.json().estado).to.eql('ANULADA'));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "07 · Conciliación, reportes y auditoría",
+      "item": [
+        {
+          "name": "Conciliación de pagos",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/conciliacion",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "conciliacion"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Reporte de ventas del día",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/reportes/ventas?periodo=dia",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reportes",
+                "ventas"
+              ],
+              "query": [
+                {
+                  "key": "periodo",
+                  "value": "dia"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Reporte de ventas del mes",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/reportes/ventas?periodo=mes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "reportes",
+                "ventas"
+              ],
+              "query": [
+                {
+                  "key": "periodo",
+                  "value": "mes"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Bitácora de auditoría (ADMIN)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/bitacora?entidad=FACTURA",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "bitacora"
+              ],
+              "query": [
+                {
+                  "key": "entidad",
+                  "value": "FACTURA"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

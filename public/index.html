@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ICI Facturación Electrónica</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+
+<div id="pantalla-login" class="login-fondo oculto">
+  <div class="login-tarjeta">
+    <div class="login-marca">
+      <span class="login-logo">ICI</span>
+      <div>
+        <h1>Facturación Electrónica</h1>
+        <p>Plataforma de documentos tributarios</p>
+      </div>
+    </div>
+    <form id="form-login" autocomplete="on">
+      <label>Correo electrónico
+        <input type="email" name="email" required placeholder="usuario@ici.com.sv">
+      </label>
+      <label>Contraseña
+        <input type="password" name="password" required minlength="6" placeholder="••••••••">
+      </label>
+      <button type="submit" class="btn btn-primario btn-bloque">Iniciar sesión</button>
+      <p class="login-nota">¿Primera vez en el sistema? <a href="#" id="enlace-registro">Crear el primer usuario (ADMIN)</a></p>
+    </form>
+    <form id="form-registro" class="oculto" autocomplete="off">
+      <label>Nombre completo
+        <input type="text" name="nombre" required placeholder="Nombre y apellido">
+      </label>
+      <label>Correo electrónico
+        <input type="email" name="email" required placeholder="usuario@ici.com.sv">
+      </label>
+      <label>Contraseña
+        <input type="password" name="password" required minlength="6" placeholder="Mínimo 6 caracteres">
+      </label>
+      <button type="submit" class="btn btn-primario btn-bloque">Registrar y continuar</button>
+      <p class="login-nota"><a href="#" id="enlace-login">Volver a iniciar sesión</a></p>
+    </form>
+  </div>
+</div>
+
+<div id="app" class="app oculto">
+  <aside class="barra-lateral">
+    <div class="marca">
+      <span class="marca-logo">ICI</span>
+      <span class="marca-texto">Facturación</span>
+    </div>
+    <nav id="nav-principal">
+      <a href="#/tablero" data-vista="tablero"><span class="nav-icono">▦</span>Tablero</a>
+      <a href="#/facturas" data-vista="facturas"><span class="nav-icono">▤</span>Facturas</a>
+      <a href="#/notas" data-vista="notas"><span class="nav-icono">▥</span>Notas de crédito</a>
+      <a href="#/clientes" data-vista="clientes"><span class="nav-icono">◪</span>Clientes</a>
+      <a href="#/series" data-vista="series"><span class="nav-icono">⁝</span>Series</a>
+      <a href="#/reportes" data-vista="reportes"><span class="nav-icono">◫</span>Reportes</a>
+      <a href="#/bitacora" data-vista="bitacora" data-solo-admin><span class="nav-icono">≡</span>Bitácora</a>
+    </nav>
+    <div class="barra-usuario">
+      <div>
+        <strong id="usuario-nombre"></strong>
+        <span id="usuario-rol" class="chip-rol"></span>
+      </div>
+      <button id="btn-salir" class="btn btn-fantasma">Cerrar sesión</button>
+    </div>
+  </aside>
+
+  <main class="contenido">
+    <header class="topbar">
+      <h2 id="titulo-vista"></h2>
+      <div id="acciones-vista"></div>
+    </header>
+    <section id="vista"></section>
+  </main>
+</div>
+
+<div id="capa-modal" class="capa-modal oculto" role="dialog" aria-modal="true">
+  <div class="modal" id="modal-contenido"></div>
+</div>
+
+<div id="capa-panel" class="capa-panel oculto">
+  <div class="panel-documento" id="panel-contenido"></div>
+</div>
+
+<div id="toasts" class="toasts" aria-live="polite"></div>
+
+<script src="/app.js"></script>
+</body>
+</html>
