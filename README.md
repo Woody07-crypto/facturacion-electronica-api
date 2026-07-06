@@ -78,3 +78,4 @@ Con PostgreSQL, la asignación de correlativos usa bloqueo pesimista (`SELECT �
 ## Interfaz web
 
 SPA sin frameworks (tres archivos en `public/`): cliente HTTP con manejo de sesión y expiración, store con suscripciones, enrutador por hash, vistas conscientes del rol del usuario, cálculo de IVA en vivo idéntico al backend, panel de detalle con estética de documento tributario y gráfica de ventas en SVG puro.
+# facturacion-electronica-api
