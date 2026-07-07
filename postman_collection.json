@@ -60,7 +60,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"email\": \"admin@ici.com.sv\",\n  \"password\": \"Secreto123\",\n  \"nombre\": \"Administrador ICI\"\n}"
+              "raw": "{\n  \"email\": \"admin@esen.com.sv\",\n  \"password\": \"Secreto123\",\n  \"nombre\": \"Administrador ESEN\"\n}"
             }
           },
           "event": [
@@ -97,7 +97,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"email\": \"admin@ici.com.sv\",\n  \"password\": \"Secreto123\"\n}"
+              "raw": "{\n  \"email\": \"admin@esen.com.sv\",\n  \"password\": \"Secreto123\"\n}"
             }
           },
           "event": [

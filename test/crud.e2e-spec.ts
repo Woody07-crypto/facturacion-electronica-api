@@ -11,10 +11,10 @@ describe('CRUD y consultas complementarias (e2e)', () => {
     app = await crearApp();
     await request(app.getHttpServer())
       .post('/auth/register')
-      .send({ email: 'admin2@ici.com.sv', password: 'Secreto123', nombre: 'Admin' });
+      .send({ email: 'admin2@esen.com.sv', password: 'Secreto123', nombre: 'Admin' });
     const login = await request(app.getHttpServer())
       .post('/auth/login')
-      .send({ email: 'admin2@ici.com.sv', password: 'Secreto123' });
+      .send({ email: 'admin2@esen.com.sv', password: 'Secreto123' });
     token = login.body.access_token;
   });
 

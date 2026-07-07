@@ -26,7 +26,7 @@ describe('Flujo completo de facturación (e2e)', () => {
   it('registra el primer usuario como ADMIN', async () => {
     const res = await request(app.getHttpServer())
       .post('/auth/register')
-      .send({ email: 'admin@ici.com.sv', password: 'Secreto123', nombre: 'Admin ICI' })
+      .send({ email: 'admin@esen.com.sv', password: 'Secreto123', nombre: 'Admin ESEN' })
       .expect(201);
     expect(res.body.rol).toBe('ADMIN');
   });
@@ -34,14 +34,14 @@ describe('Flujo completo de facturación (e2e)', () => {
   it('rechaza login con credenciales inválidas', async () => {
     await request(app.getHttpServer())
       .post('/auth/login')
-      .send({ email: 'admin@ici.com.sv', password: 'incorrecta' })
+      .send({ email: 'admin@esen.com.sv', password: 'incorrecta' })
       .expect(401);
   });
 
   it('inicia sesión y obtiene token', async () => {
     const res = await request(app.getHttpServer())
       .post('/auth/login')
-      .send({ email: 'admin@ici.com.sv', password: 'Secreto123' })
+      .send({ email: 'admin@esen.com.sv', password: 'Secreto123' })
       .expect(200);
     token = res.body.access_token;
     expect(token).toBeDefined();
@@ -253,11 +253,11 @@ describe('Flujo completo de facturación (e2e)', () => {
   it('restringe rutas de ADMIN a usuarios VENTAS', async () => {
     await request(app.getHttpServer())
       .post('/auth/register')
-      .send({ email: 'vendedor@ici.com.sv', password: 'Secreto123', nombre: 'Vendedor' })
+      .send({ email: 'vendedor@esen.com.sv', password: 'Secreto123', nombre: 'Vendedor' })
       .expect(201);
     const login = await request(app.getHttpServer())
       .post('/auth/login')
-      .send({ email: 'vendedor@ici.com.sv', password: 'Secreto123' })
+      .send({ email: 'vendedor@esen.com.sv', password: 'Secreto123' })
       .expect(200);
     await request(app.getHttpServer())
       .get('/bitacora')

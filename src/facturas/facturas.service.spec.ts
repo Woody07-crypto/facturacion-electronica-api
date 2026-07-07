@@ -14,7 +14,7 @@ describe('FacturasService (reglas de negocio)', () => {
   let pagosService: PagosService;
   let clienteId: number;
   let serieFacturaId: number;
-  const usuario = { email: 'admin@ici.com.sv' };
+  const usuario = { email: 'admin@esen.com.sv' };
 
   beforeAll(async () => {
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();

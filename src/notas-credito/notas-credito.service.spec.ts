@@ -13,7 +13,7 @@ describe('NotasCreditoService (reglas de negocio)', () => {
   let facturaId: number;
   let facturaTotal: number;
   let serieNcId: number;
-  const usuario = { email: 'admin@ici.com.sv' };
+  const usuario = { email: 'admin@esen.com.sv' };
 
   beforeAll(async () => {
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();

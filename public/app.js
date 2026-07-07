@@ -1,7 +1,7 @@
 'use strict';
 
 /* =========================================================
- * ICI Facturación Electrónica — SPA
+ * ESEN Facturación Electrónica — SPA
  * Módulos: Api (HTTP), Store (estado), Ui (toasts/modales),
  * Router (hash) y Vistas (tablero, facturas, notas, clientes,
  * series, reportes, bitácora).
