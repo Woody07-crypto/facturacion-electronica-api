@@ -392,6 +392,7 @@ async function abrirDetalleFactura(id) {
   const anulable = f.estado !== 'ANULADA' && (f.pagos || []).length === 0;
   const cobrable = f.estado !== 'ANULADA' && saldo.saldoPendiente > 0;
   const acreditable = f.estado !== 'ANULADA' && saldo.notasCredito < f.total;
+  const debitable = f.estado !== 'ANULADA';
 
   Ui.panel(`
     <div class="doc-cabecera">
@@ -420,7 +421,7 @@ async function abrirDetalleFactura(id) {
         <span>Subtotal ${dinero.format(f.subtotal)}</span>
         <span>IVA 13% ${dinero.format(f.iva)}</span>
         <span><strong>Total ${dinero.format(f.total)}</strong></span>
-        <span>Pagado ${dinero.format(saldo.pagado)} · Notas de crédito ${dinero.format(saldo.notasCredito)}</span>
+        <span>Pagado ${dinero.format(saldo.pagado)} · NC −${dinero.format(saldo.notasCredito)} · ND +${dinero.format(saldo.notasDebito || 0)}</span>
         <span class="saldo ${saldo.saldoPendiente > 0 ? 'saldo-positivo' : 'saldo-cero'}">Saldo ${dinero.format(saldo.saldoPendiente)}</span>
       </div>
     </div>
@@ -433,15 +434,21 @@ async function abrirDetalleFactura(id) {
       ${f.notasCredito.map((n) => `<tr><td><span class="mono">${esc(n.numeroCompleto)}</span><div class="celda-secundaria">${esc(n.razon)}</div></td><td class="num mono">−${dinero.format(n.monto)}</td></tr>`).join('')}
     </tbody></table></div>` : ''}
 
+    ${(f.notasDebito || []).length ? `<div class="doc-seccion"><h4>Notas de débito vinculadas</h4><table class="doc-tabla"><tbody>
+      ${f.notasDebito.map((n) => `<tr><td><span class="mono">${esc(n.numeroCompleto)}</span><div class="celda-secundaria">${esc(n.razon)}</div></td><td class="num mono">+${dinero.format(n.monto)}</td></tr>`).join('')}
+    </tbody></table></div>` : ''}
+
     ${f.estado === 'ANULADA' ? `<div class="doc-seccion"><h4>Razón de anulación</h4><p>${esc(f.razonAnulacion)}</p></div>` : ''}
 
     <div class="doc-acciones">
       ${cobrable ? '<button class="btn btn-primario" id="btn-pago">Registrar pago</button>' : ''}
       ${acreditable ? '<button class="btn btn-secundario" id="btn-nc">Nota de crédito</button>' : ''}
+      ${debitable ? '<button class="btn btn-secundario" id="btn-nd">Nota de débito</button>' : ''}
       ${anulable && Store.esAdmin() ? '<button class="btn btn-peligro" id="btn-anular">Anular</button>' : ''}
     </div>`, (raiz) => {
     $('#btn-pago', raiz)?.addEventListener('click', () => abrirFormularioPago(f, saldo));
     $('#btn-nc', raiz)?.addEventListener('click', () => abrirFormularioNota(f, saldo));
+    $('#btn-nd', raiz)?.addEventListener('click', () => abrirFormularioNotaDebito(f));
     $('#btn-anular', raiz)?.addEventListener('click', () => abrirFormularioAnulacion(f));
   });
 }
@@ -529,6 +536,48 @@ async function abrirFormularioNota(f, saldo) {
   });
 }
 
+async function abrirFormularioNotaDebito(f) {
+  const series = (await Api.get('/series')).filter((s) => s.tipoDocumento === 'NOTA_DEBITO' && s.activa);
+  if (!series.length) { Ui.toast('Primero cree una serie de tipo NOTA_DEBITO.', 'error'); return; }
+  Ui.modal(`
+    <h3>Emitir nota de débito</h3>
+    <p class="modal-sub">Vinculada a ${esc(f.numeroCompleto)} · Aumenta el saldo pendiente del cliente</p>
+    <form id="form-nd">
+      <div class="fila-doble">
+        <label>Serie
+          <select name="serieId">${series.map((s) => `<option value="${s.id}">${esc(s.prefijo)}</option>`).join('')}</select>
+        </label>
+        <label>Monto
+          <input type="number" name="monto" required min="0.01" step="0.01">
+        </label>
+      </div>
+      <label>Razón
+        <input type="text" name="razon" required minlength="5" placeholder="Ej. Flete adicional no facturado">
+      </label>
+      <div class="modal-pie">
+        <button type="button" class="btn btn-secundario" data-cerrar>Cancelar</button>
+        <button type="submit" class="btn btn-primario">Emitir nota</button>
+      </div>
+    </form>`, (raiz) => {
+    raiz.querySelector('[data-cerrar]').addEventListener('click', Ui.cerrarModal);
+    $('#form-nd', raiz).addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      try {
+        const nd = await Api.post('/notas-debito', {
+          facturaId: f.id,
+          serieId: Number(fd.get('serieId')),
+          monto: Number(fd.get('monto')),
+          razon: fd.get('razon'),
+        });
+        Ui.cerrarModal(); Ui.cerrarPanel();
+        Ui.toast(`Nota de débito ${nd.numeroCompleto} emitida por ${dinero.format(nd.monto)}`);
+        Router.resolver();
+      } catch (err) { Ui.toast(err.message, 'error'); }
+    });
+  });
+}
+
 function abrirFormularioAnulacion(f) {
   Ui.modal(`
     <h3>Anular factura</h3>
@@ -555,24 +604,33 @@ function abrirFormularioAnulacion(f) {
   });
 }
 
-/* ---------- Notas de crédito ---------- */
+/* ---------- Notas (crédito y débito) ---------- */
 Router.registrar('notas', {
-  titulo: 'Notas de crédito',
+  titulo: 'Notas de crédito y débito',
   async render() {
-    const notas = await Api.get('/notas-credito');
-    if (!notas.length) {
-      $('#vista').innerHTML = '<div class="tarjeta"><p class="tabla-vacia">No hay notas de crédito. Se emiten desde el detalle de una factura.</p></div>';
+    const [notasCredito, notasDebito] = await Promise.all([
+      Api.get('/notas-credito'),
+      Api.get('/notas-debito'),
+    ]);
+    const filas = [
+      ...notasCredito.map((n) => ({ ...n, tipo: 'CRÉDITO', signo: '−' })),
+      ...notasDebito.map((n) => ({ ...n, tipo: 'DÉBITO', signo: '+' })),
+    ].sort((a, b) => new Date(b.fechaEmision) - new Date(a.fechaEmision));
+
+    if (!filas.length) {
+      $('#vista').innerHTML = '<div class="tarjeta"><p class="tabla-vacia">No hay notas emitidas. Se emiten desde el detalle de una factura.</p></div>';
       return;
     }
     $('#vista').innerHTML = `<div class="tarjeta"><div class="tabla-envoltura"><table>
-      <thead><tr><th>Documento</th><th>Factura original</th><th>Razón</th><th>Fecha</th><th class="num">Monto</th></tr></thead>
-      <tbody>${notas.map((n) => `
+      <thead><tr><th>Tipo</th><th>Documento</th><th>Factura original</th><th>Razón</th><th>Fecha</th><th class="num">Monto</th></tr></thead>
+      <tbody>${filas.map((n) => `
         <tr class="clicable" data-factura="${n.factura?.id}">
+          <td>${n.tipo}</td>
           <td class="mono">${esc(n.numeroCompleto)}</td>
           <td class="mono">${esc(n.factura?.numeroCompleto)}</td>
           <td>${esc(n.razon)}</td>
           <td class="celda-secundaria">${fecha(n.fechaEmision)}</td>
-          <td class="num">−${dinero.format(n.monto)}</td>
+          <td class="num">${n.signo}${dinero.format(n.monto)}</td>
         </tr>`).join('')}
       </tbody></table></div></div>`;
     conectarFilasFactura();
@@ -688,19 +746,28 @@ Router.registrar('series', {
     }
     const series = await Api.get('/series');
     if (!series.length) {
-      $('#vista').innerHTML = `<div class="tarjeta"><p class="tabla-vacia">Sin series configuradas.${Store.esAdmin() ? ' Cree una serie FACTURA y una NOTA_CREDITO para comenzar a emitir.' : ' Solicite a un administrador que las configure.'}</p></div>`;
+      $('#vista').innerHTML = `<div class="tarjeta"><p class="tabla-vacia">Sin series configuradas.${Store.esAdmin() ? ' Cree series FACTURA, NOTA_CREDITO y NOTA_DEBITO para comenzar a emitir.' : ' Solicite a un administrador que las configure.'}</p></div>`;
       return;
     }
     $('#vista').innerHTML = `<div class="tarjeta"><div class="tabla-envoltura"><table>
-      <thead><tr><th>Tipo de documento</th><th>Prefijo</th><th class="num">Correlativo actual</th><th class="num">Próximo número</th></tr></thead>
+      <thead><tr><th>Tipo de documento</th><th>Prefijo</th><th class="num">Correlativo actual</th><th class="num">Próximo número</th><th>Estado</th>${Store.esAdmin() ? '<th></th>' : ''}</tr></thead>
       <tbody>${series.map((s) => `
         <tr>
-          <td>${esc(s.tipoDocumento.replace('_', ' '))}</td>
+          <td>${esc(s.tipoDocumento.replace(/_/g, ' '))}</td>
           <td class="mono">${esc(s.prefijo)}</td>
           <td class="num">${s.correlativoActual}</td>
           <td class="num mono">${esc(s.prefijo)}-${String(s.correlativoActual + 1).padStart(6, '0')}</td>
+          <td>${s.activa ? 'Activa' : 'Desactivada'}</td>
+          ${Store.esAdmin() && s.activa ? `<td><button class="btn btn-fantasma" data-desactivar="${s.id}">Desactivar</button></td>` : (Store.esAdmin() ? '<td></td>' : '')}
         </tr>`).join('')}
       </tbody></table></div></div>`;
+    $$('[data-desactivar]').forEach((btn) => btn.addEventListener('click', async () => {
+      try {
+        await Api.del(`/series/${btn.dataset.desactivar}`);
+        Ui.toast('Serie desactivada');
+        Router.resolver();
+      } catch (err) { Ui.toast(err.message, 'error'); }
+    }));
   },
 });
 

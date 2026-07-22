@@ -4,6 +4,7 @@ import {
 import { Cliente } from '../clientes/cliente.entity';
 import { decimalTransformer } from '../common/utils/decimal.util';
 import { NotaCredito } from '../notas-credito/nota-credito.entity';
+import { NotaDebito } from '../notas-debito/nota-debito.entity';
 import { Pago } from '../pagos/pago.entity';
 import { Serie } from '../series/serie.entity';
 import { LineaFactura } from './linea-factura.entity';
@@ -62,4 +63,7 @@ export class Factura {
 
   @OneToMany(() => NotaCredito, (nota) => nota.factura)
   notasCredito: NotaCredito[];
+
+  @OneToMany(() => NotaDebito, (nota) => nota.factura)
+  notasDebito: NotaDebito[];
 }

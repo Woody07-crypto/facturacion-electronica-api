@@ -38,6 +38,7 @@ export class FacturasService {
           }
           const serie = await manager.findOne(Serie, opcionesBusqueda);
           if (!serie) throw new NotFoundException('Serie no encontrada');
+          if (!serie.activa) throw new BadRequestException('La serie está desactivada');
           if (serie.tipoDocumento !== 'FACTURA') {
             throw new BadRequestException('La serie indicada no corresponde a facturas');
           }
@@ -110,7 +111,7 @@ export class FacturasService {
   async obtener(id: number) {
     const factura = await this.facturasRepo.findOne({
       where: { id },
-      relations: ['pagos', 'notasCredito'],
+      relations: ['pagos', 'notasCredito', 'notasDebito'],
     });
     if (!factura) throw new NotFoundException('Factura no encontrada');
     return factura;
@@ -119,8 +120,15 @@ export class FacturasService {
   calcularSaldo(factura: Factura) {
     const pagado = round2((factura.pagos || []).reduce((acc, p) => acc + p.monto, 0));
     const acreditado = round2((factura.notasCredito || []).reduce((acc, n) => acc + n.monto, 0));
-    const saldoPendiente = round2(factura.total - pagado - acreditado);
-    return { total: factura.total, pagado, notasCredito: acreditado, saldoPendiente };
+    const debitado = round2((factura.notasDebito || []).reduce((acc, n) => acc + n.monto, 0));
+    const saldoPendiente = round2(factura.total + debitado - pagado - acreditado);
+    return {
+      total: factura.total,
+      pagado,
+      notasCredito: acreditado,
+      notasDebito: debitado,
+      saldoPendiente,
+    };
   }
 
   async obtenerSaldo(id: number) {

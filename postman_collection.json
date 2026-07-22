@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "Plataforma de Facturación Electrónica",
-    "description": "Flujo completo: registro → login → cliente → series → emisión → pago → nota de crédito → anulación → conciliación → reportes → bitácora. Ejecutar en orden.",
+    "description": "Flujo completo: registro → login → cliente → series → emisión → pago → nota de crédito → nota de débito → anulación → conciliación → reportes → bitácora. Ejecutar en orden.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -23,6 +23,10 @@
     },
     {
       "key": "serieNotaId",
+      "value": ""
+    },
+    {
+      "key": "serieNotaDebitoId",
       "value": ""
     },
     {
@@ -235,6 +239,46 @@
                 "type": "text/javascript",
                 "exec": [
                   "if (pm.response.code === 201) pm.collectionVariables.set('serieNotaId', pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Crear serie NOTA_DEBITO (ADMIN)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/series",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "series"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tipoDocumento\": \"NOTA_DEBITO\",\n  \"prefijo\": \"ND-2026\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201) pm.collectionVariables.set('serieNotaDebitoId', pm.response.json().id);"
                 ]
               }
             }
@@ -472,7 +516,7 @@
       ]
     },
     {
-      "name": "05 · Notas de crédito",
+      "name": "05 · Notas de crédito y débito",
       "item": [
         {
           "name": "NC que supera el monto original (debe fallar 409)",
@@ -555,7 +599,47 @@
           ]
         },
         {
-          "name": "Saldar factura (pago final $50)",
+          "name": "Emitir ND válida ($10) — aumenta saldo",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/notas-debito",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "notas-debito"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"facturaId\": \"{{facturaId}}\",\n  \"serieId\": \"{{serieNotaDebitoId}}\",\n  \"monto\": 10,\n  \"razon\": \"Flete adicional no cobrado\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('ND emitida', () => pm.expect(pm.response.code).to.eql(201));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Saldar factura (pago final $60)",
           "request": {
             "method": "POST",
             "header": [
@@ -581,7 +665,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"monto\": 50,\n  \"metodo\": \"EFECTIVO\"\n}"
+              "raw": "{\n  \"monto\": 60,\n  \"metodo\": \"EFECTIVO\"\n}"
             }
           },
           "event": [

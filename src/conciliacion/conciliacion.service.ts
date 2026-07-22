@@ -15,7 +15,7 @@ export class ConciliacionService {
   async resumen() {
     const facturas = await this.facturasRepo.find({
       where: { estado: Not(EstadoFactura.ANULADA) },
-      relations: ['pagos', 'notasCredito'],
+      relations: ['pagos', 'notasCredito', 'notasDebito'],
     });
     const ahora = new Date();
 

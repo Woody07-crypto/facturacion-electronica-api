@@ -8,6 +8,7 @@ describe('Flujo completo de facturación (e2e)', () => {
   let clienteId: number;
   let serieFacturaId: number;
   let serieNotaId: number;
+  let serieNotaDebitoId: number;
   let facturaId: number;
   let facturaAnulableId: number;
 
@@ -78,7 +79,7 @@ describe('Flujo completo de facturación (e2e)', () => {
       .expect(409);
   });
 
-  it('crea series de FACTURA y NOTA_CREDITO', async () => {
+  it('crea series de FACTURA, NOTA_CREDITO y NOTA_DEBITO', async () => {
     const fac = await request(app.getHttpServer())
       .post('/series')
       .set('Authorization', `Bearer ${token}`)
@@ -92,6 +93,13 @@ describe('Flujo completo de facturación (e2e)', () => {
       .send({ tipoDocumento: 'NOTA_CREDITO', prefijo: 'NC-2026' })
       .expect(201);
     serieNotaId = nc.body.id;
+
+    const nd = await request(app.getHttpServer())
+      .post('/series')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ tipoDocumento: 'NOTA_DEBITO', prefijo: 'ND-2026' })
+      .expect(201);
+    serieNotaDebitoId = nd.body.id;
   });
 
   it('emite una factura con IVA calculado automáticamente', async () => {
@@ -185,17 +193,57 @@ describe('Flujo completo de facturación (e2e)', () => {
     expect(res.body.total).toBe(129.95);
     expect(res.body.pagado).toBe(50);
     expect(res.body.notasCredito).toBe(29.95);
+    expect(res.body.notasDebito).toBe(0);
     expect(res.body.saldoPendiente).toBe(50);
   });
 
-  it('marca la factura como PAGADA al saldar el total', async () => {
+  it('emite una nota de débito y aumenta el saldo pendiente', async () => {
+    const res = await request(app.getHttpServer())
+      .post('/notas-debito')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ facturaId, serieId: serieNotaDebitoId, monto: 10, razon: 'Flete adicional no cobrado' })
+      .expect(201);
+    expect(res.body.numeroCompleto).toBe('ND-2026-000001');
+
+    const saldo = await request(app.getHttpServer())
+      .get(`/facturas/${facturaId}/saldo`)
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+    expect(saldo.body.notasDebito).toBe(10);
+    expect(saldo.body.saldoPendiente).toBe(60);
+  });
+
+  it('marca la factura como PAGADA al saldar el total incluyendo nota de débito', async () => {
     const res = await request(app.getHttpServer())
       .post(`/facturas/${facturaId}/pagos`)
       .set('Authorization', `Bearer ${token}`)
-      .send({ monto: 50, metodo: 'EFECTIVO' })
+      .send({ monto: 60, metodo: 'EFECTIVO' })
       .expect(201);
     expect(res.body.estado).toBe('PAGADA');
     expect(res.body.saldoPendiente).toBe(0);
+  });
+
+  it('desactiva una serie y rechaza emisiones posteriores con ella', async () => {
+    const serieTemp = await request(app.getHttpServer())
+      .post('/series')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ tipoDocumento: 'FACTURA', prefijo: 'TMP-OFF' })
+      .expect(201);
+
+    await request(app.getHttpServer())
+      .delete(`/series/${serieTemp.body.id}`)
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    await request(app.getHttpServer())
+      .post('/facturas')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        clienteId,
+        serieId: serieTemp.body.id,
+        lineas: [{ descripcion: 'No debe emitir', cantidad: 1, precioUnitario: 1 }],
+      })
+      .expect(400);
   });
 
   it('anula una factura sin pagos con razón obligatoria y registra bitácora', async () => {

@@ -43,6 +43,7 @@ export class NotasCreditoService {
           }
           const serie = await manager.findOne(Serie, opcionesBusqueda);
           if (!serie) throw new NotFoundException('Serie no encontrada');
+          if (!serie.activa) throw new BadRequestException('La serie está desactivada');
           if (serie.tipoDocumento !== 'NOTA_CREDITO') {
             throw new BadRequestException('La serie indicada no corresponde a notas de crédito');
           }

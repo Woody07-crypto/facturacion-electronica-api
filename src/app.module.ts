@@ -9,6 +9,7 @@ import { ConciliacionModule } from './conciliacion/conciliacion.module';
 import { buildDbConfig } from './database/database.config';
 import { FacturasModule } from './facturas/facturas.module';
 import { NotasCreditoModule } from './notas-credito/notas-credito.module';
+import { NotasDebitoModule } from './notas-debito/notas-debito.module';
 import { PagosModule } from './pagos/pagos.module';
 import { ReportesModule } from './reportes/reportes.module';
 import { SeriesModule } from './series/series.module';
@@ -24,6 +25,7 @@ import { SeriesModule } from './series/series.module';
     FacturasModule,
     PagosModule,
     NotasCreditoModule,
+    NotasDebitoModule,
     ConciliacionModule,
     ReportesModule,
     BitacoraModule,

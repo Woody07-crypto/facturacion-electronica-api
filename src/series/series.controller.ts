@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, ParseIntPipe, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, ParseIntPipe, Post, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Roles } from '../common/decorators/roles.decorator';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
@@ -30,5 +30,12 @@ export class SeriesController {
   @ApiOperation({ summary: 'Obtener serie por id' })
   obtener(@Param('id', ParseIntPipe) id: number) {
     return this.seriesService.obtener(id);
+  }
+
+  @Delete(':id')
+  @Roles('ADMIN')
+  @ApiOperation({ summary: 'Desactivar serie (no se podrá emitir con ella; solo ADMIN)' })
+  desactivar(@Param('id', ParseIntPipe) id: number) {
+    return this.seriesService.desactivar(id);
   }
 }

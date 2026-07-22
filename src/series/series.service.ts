@@ -23,4 +23,11 @@ export class SeriesService {
     if (!serie) throw new NotFoundException('Serie no encontrada');
     return serie;
   }
+
+  async desactivar(id: number) {
+    const serie = await this.obtener(id);
+    if (!serie.activa) throw new ConflictException('La serie ya está desactivada');
+    serie.activa = false;
+    return this.seriesRepo.save(serie);
+  }
 }

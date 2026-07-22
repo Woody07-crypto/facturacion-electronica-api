@@ -1,6 +1,6 @@
 # Plataforma de Facturación Electrónica
 
-API REST + interfaz web para la emisión, gestión y consulta de documentos tributarios electrónicos (facturas y notas de crédito), con control de series y correlativos, estados, conciliación de pagos y reportes de ventas.
+API REST + interfaz web para la emisión, gestión y consulta de documentos tributarios electrónicos (facturas, notas de crédito y notas de débito), con control de series y correlativos, estados, conciliación de pagos y reportes de ventas.
 
 ## Stack
 
@@ -8,7 +8,7 @@ API REST + interfaz web para la emisión, gestión y consulta de documentos trib
 - **JWT** con control de acceso por roles (`ADMIN`, `VENTAS`)
 - **class-validator / class-transformer** en todos los DTOs
 - **Swagger / OpenAPI** en `/api/docs`
-- **Jest + Supertest** (45 pruebas, cobertura ≈ 97% de líneas)
+- **Jest + Supertest** (50 pruebas, cobertura ≈ 96% de líneas)
 - Base de datos: **sql.js** (SQLite en WebAssembly, sin compilación nativa) por defecto; **PostgreSQL** para producción vía variables de entorno
 - Interfaz: SPA en JavaScript puro servida por la misma API en `/`
 
@@ -27,7 +27,7 @@ El **primer usuario registrado** recibe rol `ADMIN`; los siguientes, `VENTAS`. D
 ### Pruebas y cobertura
 
 ```bash
-npm test        # 45 pruebas (unitarias + e2e)
+npm test        # 50 pruebas (unitarias + e2e)
 npm run test:cov  # reporte de cobertura en coverage/
 ```
 
@@ -39,11 +39,11 @@ DB_TYPE=postgres DB_HOST=localhost DB_PORT=5432 DB_USER=postgres DB_PASS=postgre
 
 Con PostgreSQL, la asignación de correlativos usa bloqueo pesimista (`SELECT … FOR UPDATE`) además del índice único.
 
-## Entidades (TypeORM, 8 relacionadas)
+## Entidades (TypeORM, 9 relacionadas)
 
-`Usuario`, `Cliente`, `Serie`, `Factura`, `LineaFactura`, `Pago`, `NotaCredito`, `Bitacora`
+`Usuario`, `Cliente`, `Serie`, `Factura`, `LineaFactura`, `Pago`, `NotaCredito`, `NotaDebito`, `Bitacora`
 
-Índices únicos: `clientes.nit`, `series(tipoDocumento, prefijo)`, `facturas(serie, numero)`, `notas_credito(serie, numero)`.
+Índices únicos: `clientes.nit`, `series(tipoDocumento, prefijo)`, `facturas(serie, numero)`, `notas_credito(serie, numero)`, `notas_debito(serie, numero)`.
 
 ## Reglas de negocio implementadas
 
@@ -51,8 +51,10 @@ Con PostgreSQL, la asignación de correlativos usa bloqueo pesimista (`SELECT �
 - Correlativo único por serie garantizado con tres capas: mutex por serie en la aplicación, transacción con reintento ante violación de unicidad, e índice único en base de datos (más bloqueo pesimista en PostgreSQL).
 - No se puede **anular** una factura con pagos registrados; la anulación exige razón (mínimo 5 caracteres).
 - La suma de **notas de crédito** de una factura nunca puede superar su monto original.
-- **Saldo pendiente** = total − pagos − notas de crédito; transiciones automáticas de estado `EMITIDA → PAGADA_PARCIAL → PAGADA` y `EMITIDA → ANULADA`.
+- Las **notas de débito** aumentan el saldo pendiente del cliente (cargos adicionales vinculados a la factura).
+- **Saldo pendiente** = total + notas de débito − pagos − notas de crédito; transiciones automáticas de estado `EMITIDA → PAGADA_PARCIAL → PAGADA` y `EMITIDA → ANULADA`.
 - No se aceptan pagos mayores al saldo ni pagos sobre facturas anuladas.
+- Las series desactivadas no pueden usarse para emitir documentos.
 - Toda transición de estado emite el evento `documento.transicion` (EventEmitter2) y queda registrada en la **bitácora** de auditoría.
 
 ## Endpoints principales
@@ -61,19 +63,20 @@ Con PostgreSQL, la asignación de correlativos usa bloqueo pesimista (`SELECT �
 | --- | --- | --- |
 | POST | `/auth/register`, `/auth/login` | Registro y autenticación JWT |
 | CRUD | `/clientes` | Clientes con NIT, NRC y giro (desactivar: solo ADMIN) |
-| POST/GET | `/series` | Series y correlativos (crear: solo ADMIN) |
+| POST/GET/DELETE | `/series` | Series y correlativos (crear/desactivar: solo ADMIN) |
 | POST/GET | `/facturas` | Emisión y consulta de facturas |
 | GET | `/facturas/:id/saldo` | Saldo pendiente calculado |
 | POST | `/facturas/:id/anular` | Anulación con razón (solo ADMIN) |
 | POST/GET | `/facturas/:id/pagos` | Pagos parciales o totales |
 | POST/GET | `/notas-credito` | Notas de crédito vinculadas a factura |
+| POST/GET | `/notas-debito` | Notas de débito vinculadas a factura |
 | GET | `/conciliacion` | Pendientes, vencidas y pagadas |
 | GET | `/reportes/ventas?periodo=dia\|semana\|mes` | Ventas con totales por cliente |
 | GET | `/bitacora?entidad=` | Auditoría (solo ADMIN) |
 
 ## Colección Postman
 
-`postman_collection.json` contiene el flujo completo **emisión → pago → anulación** con variables (`baseUrl`, `token`) y scripts que capturan automáticamente el token y los IDs generados. Importar en Postman y ejecutar en orden (o con el Collection Runner).
+`postman_collection.json` contiene el flujo completo **emisión → pago → nota de crédito → nota de débito → anulación** con variables (`baseUrl`, `token`) y scripts que capturan automáticamente el token y los IDs generados. Importar en Postman y ejecutar en orden (o con el Collection Runner).
 
 ## Interfaz web
 
