@@ -36,6 +36,18 @@
     {
       "key": "facturaAnulableId",
       "value": ""
+    },
+    {
+      "key": "emisorId",
+      "value": ""
+    },
+    {
+      "key": "establecimientoId",
+      "value": ""
+    },
+    {
+      "key": "puntoVentaId",
+      "value": ""
     }
   ],
   "item": [
@@ -892,6 +904,103 @@
                 }
               ]
             }
+          }
+        }
+      ]
+    },
+    {
+      "name": "08 · Emisor (DTE Fase 1)",
+      "item": [
+        {
+          "name": "Registrar emisor (ADMIN)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/emisor", "host": ["{{baseUrl}}"], "path": ["emisor"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nit\": \"0614-290313-101-3\",\n  \"nrc\": \"123456-7\",\n  \"nombre\": \"Comercializadora Demo S.A. de C.V.\",\n  \"nombreComercial\": \"Demo Store\",\n  \"codActividad\": \"46452\",\n  \"descActividad\": \"Venta al por menor\",\n  \"departamento\": \"San Salvador\",\n  \"municipio\": \"San Salvador\",\n  \"complemento\": \"Col. Escalón #10\",\n  \"ambientePorDefecto\": \"00\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201) pm.collectionVariables.set('emisorId', pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Crear establecimiento (ADMIN)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/emisor/establecimientos", "host": ["{{baseUrl}}"], "path": ["emisor", "establecimientos"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"codigo\": \"0000\",\n  \"tipoEstablecimiento\": \"01\",\n  \"nombre\": \"Casa matriz\",\n  \"direccion\": \"Col. Escalón, San Salvador\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201) pm.collectionVariables.set('establecimientoId', pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Crear punto de venta (ADMIN)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/emisor/establecimientos/{{establecimientoId}}/puntos-venta",
+              "host": ["{{baseUrl}}"],
+              "path": ["emisor", "establecimientos", "{{establecimientoId}}", "puntos-venta"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"codigo\": \"001\",\n  \"nombre\": \"Caja principal\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201) pm.collectionVariables.set('puntoVentaId', pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Consultar emisor activo",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/emisor/activo", "host": ["{{baseUrl}}"], "path": ["emisor", "activo"] }
           }
         }
       ]

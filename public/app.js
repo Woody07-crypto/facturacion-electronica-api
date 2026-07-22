@@ -4,7 +4,7 @@
  * ESEN Facturación Electrónica — SPA
  * Módulos: Api (HTTP), Store (estado), Ui (toasts/modales),
  * Router (hash) y Vistas (tablero, facturas, notas, clientes,
- * series, reportes, bitácora).
+ * emisor, series, reportes, bitácora).
  * ========================================================= */
 
 const IVA_RATE = 0.13;
@@ -731,6 +731,166 @@ function abrirFormularioCliente(cliente) {
         Ui.cerrarModal();
         Ui.toast(editando ? 'Cliente actualizado' : 'Cliente creado');
         Router.resolver();
+      } catch (err) { Ui.toast(err.message, 'error'); }
+    });
+  });
+}
+
+/* ---------- Emisor (DTE Fase 1, solo ADMIN) ---------- */
+Router.registrar('emisor', {
+  titulo: 'Emisor (contribuyente)',
+  soloAdmin: true,
+  async render() {
+    let activo = null;
+    try { activo = await Api.get('/emisor/activo'); } catch { /* sin emisor */ }
+
+    if (!activo) {
+      $('#acciones-vista').innerHTML = '<button class="btn btn-primario" id="btn-nuevo-emisor">Registrar emisor</button>';
+      $('#btn-nuevo-emisor').addEventListener('click', abrirFormularioEmisor);
+      $('#vista').innerHTML = `<div class="tarjeta"><p class="tabla-vacia">Aún no hay emisor activo. Registre el contribuyente que emitirá los DTE (Fase 1). Ambiente por defecto: <strong>00</strong> (pruebas).</p></div>`;
+      return;
+    }
+
+    $('#acciones-vista').innerHTML = `
+      <button class="btn btn-secundario" id="btn-editar-emisor">Editar emisor</button>
+      <button class="btn btn-primario" id="btn-nuevo-est">Nuevo establecimiento</button>`;
+    $('#btn-editar-emisor').addEventListener('click', () => abrirFormularioEmisor(activo));
+    $('#btn-nuevo-est').addEventListener('click', () => abrirFormularioEstablecimiento());
+
+    const establecimientos = activo.establecimientos || [];
+    $('#vista').innerHTML = `
+      <div class="tarjeta" style="margin-bottom:16px">
+        <h3 style="margin:0 0 8px">${esc(activo.nombre)}</h3>
+        <p class="celda-secundaria">NIT ${esc(activo.nit)} · NRC ${esc(activo.nrc)} · Ambiente ${esc(activo.ambientePorDefecto)}</p>
+        <p class="celda-secundaria">${esc(activo.nombreComercial || '')} ${activo.codActividad ? `· Actividad ${esc(activo.codActividad)}` : ''}</p>
+        <p class="celda-secundaria">${[activo.departamento, activo.municipio, activo.complemento].filter(Boolean).map(esc).join(' · ') || 'Sin dirección'}</p>
+      </div>
+      <div class="tarjeta"><div class="tabla-envoltura"><table>
+        <thead><tr><th>Código</th><th>Tipo</th><th>Nombre</th><th>Estado</th><th>Puntos de venta</th><th></th></tr></thead>
+        <tbody>${establecimientos.length ? establecimientos.map((e) => `
+          <tr>
+            <td class="mono">${esc(e.codigo)}</td>
+            <td>${esc(e.tipoEstablecimiento)}</td>
+            <td>${esc(e.nombre)}<div class="celda-secundaria">${esc(e.direccion || '')}</div></td>
+            <td>${e.activo ? 'Activo' : 'Inactivo'}</td>
+            <td>${(e.puntosVenta || []).map((p) => `<span class="mono">${esc(p.codigo)}</span> ${esc(p.nombre)}${p.activo ? '' : ' (off)'}`).join('<br>') || '—'}</td>
+            <td>
+              ${e.activo ? `<button class="btn btn-fantasma" data-pv="${e.id}">+ PV</button>
+              <button class="btn btn-peligro" data-off-est="${e.id}">Desactivar</button>` : ''}
+            </td>
+          </tr>`).join('') : '<tr><td colspan="6" class="tabla-vacia">Sin establecimientos. Cree la casa matriz (código 0000).</td></tr>'}
+        </tbody>
+      </table></div></div>`;
+
+    $$('[data-pv]').forEach((btn) => btn.addEventListener('click', () => abrirFormularioPuntoVenta(Number(btn.dataset.pv))));
+    $$('[data-off-est]').forEach((btn) => btn.addEventListener('click', async () => {
+      try {
+        await Api.del(`/emisor/establecimientos/${btn.dataset.offEst}`);
+        Ui.toast('Establecimiento desactivado');
+        Router.resolver();
+      } catch (err) { Ui.toast(err.message, 'error'); }
+    }));
+  },
+});
+
+function abrirFormularioEmisor(existente) {
+  const e = existente || {};
+  Ui.modal(`
+    <h3>${existente ? 'Editar emisor' : 'Registrar emisor'}</h3>
+    <p class="modal-sub">Datos del contribuyente. El JSON DTE oficial se mapeará en fases posteriores (schemas MH).</p>
+    <form id="form-emisor">
+      <div class="fila-doble">
+        <label>NIT<input name="nit" required pattern="\\d{4}-\\d{6}-\\d{3}-\\d" value="${esc(e.nit || '')}" ${existente ? 'readonly' : ''}></label>
+        <label>NRC<input name="nrc" required value="${esc(e.nrc || '')}"></label>
+      </div>
+      <label>Nombre / razón social<input name="nombre" required minlength="3" value="${esc(e.nombre || '')}"></label>
+      <label>Nombre comercial<input name="nombreComercial" value="${esc(e.nombreComercial || '')}"></label>
+      <div class="fila-doble">
+        <label>Cód. actividad<input name="codActividad" value="${esc(e.codActividad || '')}"></label>
+        <label>Ambiente
+          <select name="ambientePorDefecto">
+            <option value="00" ${(e.ambientePorDefecto || '00') === '00' ? 'selected' : ''}>00 — Pruebas</option>
+            <option value="01" ${e.ambientePorDefecto === '01' ? 'selected' : ''}>01 — Producción</option>
+          </select>
+        </label>
+      </div>
+      <label>Descripción actividad<input name="descActividad" value="${esc(e.descActividad || '')}"></label>
+      <div class="fila-doble">
+        <label>Departamento<input name="departamento" value="${esc(e.departamento || '')}"></label>
+        <label>Municipio<input name="municipio" value="${esc(e.municipio || '')}"></label>
+      </div>
+      <label>Complemento dirección<input name="complemento" value="${esc(e.complemento || '')}"></label>
+      <div class="fila-doble">
+        <label>Teléfono<input name="telefono" value="${esc(e.telefono || '')}"></label>
+        <label>Correo<input type="email" name="correo" value="${esc(e.correo || '')}"></label>
+      </div>
+      <div class="modal-pie">
+        <button type="button" class="btn btn-secundario" data-cerrar>Cancelar</button>
+        <button type="submit" class="btn btn-primario">Guardar</button>
+      </div>
+    </form>`, (raiz) => {
+    raiz.querySelector('[data-cerrar]').addEventListener('click', Ui.cerrarModal);
+    $('#form-emisor', raiz).addEventListener('submit', async (ev) => {
+      ev.preventDefault();
+      const fd = new FormData(ev.target);
+      const cuerpo = Object.fromEntries([...fd.entries()].filter(([, v]) => String(v).trim() !== ''));
+      try {
+        if (existente?.id) await Api.patch(`/emisor/${existente.id}`, cuerpo);
+        else await Api.post('/emisor', cuerpo);
+        Ui.cerrarModal(); Ui.toast('Emisor guardado'); Router.resolver();
+      } catch (err) { Ui.toast(err.message, 'error'); }
+    });
+  });
+}
+
+function abrirFormularioEstablecimiento() {
+  Ui.modal(`
+    <h3>Nuevo establecimiento</h3>
+    <p class="modal-sub">El tipo se validará contra CAT-009 en Fase 2. Use 0000 para casa matriz.</p>
+    <form id="form-est">
+      <div class="fila-doble">
+        <label>Código (4 dígitos)<input name="codigo" required pattern="\\d{4}" value="0000"></label>
+        <label>Tipo<input name="tipoEstablecimiento" required value="01" placeholder="01 (texto libre Fase 1)"></label>
+      </div>
+      <label>Nombre<input name="nombre" required minlength="2" value="Casa matriz"></label>
+      <label>Dirección<input name="direccion"></label>
+      <div class="modal-pie">
+        <button type="button" class="btn btn-secundario" data-cerrar>Cancelar</button>
+        <button type="submit" class="btn btn-primario">Crear</button>
+      </div>
+    </form>`, (raiz) => {
+    raiz.querySelector('[data-cerrar]').addEventListener('click', Ui.cerrarModal);
+    $('#form-est', raiz).addEventListener('submit', async (ev) => {
+      ev.preventDefault();
+      const cuerpo = Object.fromEntries(new FormData(ev.target));
+      try {
+        await Api.post('/emisor/establecimientos', cuerpo);
+        Ui.cerrarModal(); Ui.toast('Establecimiento creado'); Router.resolver();
+      } catch (err) { Ui.toast(err.message, 'error'); }
+    });
+  });
+}
+
+function abrirFormularioPuntoVenta(establecimientoId) {
+  Ui.modal(`
+    <h3>Nuevo punto de venta</h3>
+    <form id="form-pv">
+      <div class="fila-doble">
+        <label>Código (3 dígitos)<input name="codigo" required pattern="\\d{3}" value="001"></label>
+        <label>Nombre<input name="nombre" required minlength="2" value="Caja principal"></label>
+      </div>
+      <div class="modal-pie">
+        <button type="button" class="btn btn-secundario" data-cerrar>Cancelar</button>
+        <button type="submit" class="btn btn-primario">Crear</button>
+      </div>
+    </form>`, (raiz) => {
+    raiz.querySelector('[data-cerrar]').addEventListener('click', Ui.cerrarModal);
+    $('#form-pv', raiz).addEventListener('submit', async (ev) => {
+      ev.preventDefault();
+      const cuerpo = Object.fromEntries(new FormData(ev.target));
+      try {
+        await Api.post(`/emisor/establecimientos/${establecimientoId}/puntos-venta`, cuerpo);
+        Ui.cerrarModal(); Ui.toast('Punto de venta creado'); Router.resolver();
       } catch (err) { Ui.toast(err.message, 'error'); }
     });
   });

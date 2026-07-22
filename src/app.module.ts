@@ -7,6 +7,7 @@ import { BitacoraModule } from './bitacora/bitacora.module';
 import { ClientesModule } from './clientes/clientes.module';
 import { ConciliacionModule } from './conciliacion/conciliacion.module';
 import { buildDbConfig } from './database/database.config';
+import { EmisorModule } from './emisor/emisor.module';
 import { FacturasModule } from './facturas/facturas.module';
 import { NotasCreditoModule } from './notas-credito/notas-credito.module';
 import { NotasDebitoModule } from './notas-debito/notas-debito.module';
@@ -21,6 +22,7 @@ import { SeriesModule } from './series/series.module';
     TypeOrmModule.forRoot(buildDbConfig()),
     AuthModule,
     ClientesModule,
+    EmisorModule,
     SeriesModule,
     FacturasModule,
     PagosModule,
